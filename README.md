@@ -28,9 +28,18 @@ EU 市場という双日固有のサプライチェーンを一気通貫で扱�
 ```bash
 npm install
 npm run dev    # http://localhost:3000
-npm run build  # 本番ビルド（型チェック込み）
-npm run start  # 本番サーバ
+npm run build  # 静的エクスポート（out/ に出力, 型チェック込み）
 ```
+
+## GitHub Pages 公開
+
+`claude/battery-passport-niobium-zOrD8` への push で `.github/workflows/deploy.yml`
+が静的エクスポート（`output: "export"`）をビルドし、GitHub Pages へ自動デプロイする。
+
+- 公開URL: **https://ssssssss88888888-cell.github.io/NTO-Alliance-Cockpit/**
+- 初回のみ: リポジトリ Settings → Pages → Source を **GitHub Actions** に設定（ワークフローが自動有効化を試行）
+- サブパス配信のため、CI が `NEXT_PUBLIC_BASE_PATH`（= `/NTO-Alliance-Cockpit`）を
+  `next.config.ts` の `basePath` / `assetPrefix` に渡す。ローカルでは空のまま動作。
 
 ## 構成
 
