@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sojitz NTO Alliance Cockpit — デモ</title>
+<style>
+  :root{
+    --background:#070b14; --surface:#0d1424; --surface-2:#121b30; --surface-3:#18243d;
+    --border:#1f2c45; --border-strong:#2c3d5e;
+    --foreground:#e7edf8; --muted:#93a3c2; --faint:#5e6f90;
+    --niobium:#2dd4bf; --sky:#38bdf8; --indigo:#818cf8; --brand:#f0513c;
+    --amber:#fbbf24; --rose:#fb7185; --green:#34d399;
+  }
+  *{box-sizing:border-box}
+  html{color-scheme:dark}
+  body{
+    margin:0; color:var(--foreground);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI",Meiryo,sans-serif;
+    background:
+      radial-gradient(1100px 700px at 12% -10%, rgba(45,212,191,.08), transparent 60%),
+      radial-gradient(1000px 600px at 100% 0%, rgba(56,189,248,.07), transparent 55%),
+      var(--background);
+    -webkit-font-smoothing:antialiased;
+  }
+  *::-webkit-scrollbar{width:8px;height:8px}
+  *::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:999px}
+  .mono{font-family:ui-monospace,"SFMono-Regular","Roboto Mono",Menlo,monospace}
+  .tabular{font-variant-numeric:tabular-nums}
+  .t-niobium{color:var(--niobium)} .t-sky{color:var(--sky)} .t-indigo{color:var(--indigo)}
+  .t-brand{color:var(--brand)} .t-amber{color:var(--amber)} .t-green{color:var(--green)}
+  .t-muted{color:var(--muted)} .t-faint{color:var(--faint)} .t-fore{color:var(--foreground)}
+
+  /* layout */
+  .app{display:flex;flex-direction:column;min-height:100vh}
+  .sidebar{border-bottom:1px solid var(--border);background:rgba(13,20,36,.6);backdrop-filter:blur(8px)}
+  .brand{display:flex;align-items:center;gap:10px;padding:18px 20px}
+  .brand .logo{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:rgba(240,81,60,.15);color:var(--brand)}
+  .brand b{font-size:14px;letter-spacing:-.01em}
+  .brand small{display:block;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+  .nav{display:flex;gap:4px;overflow-x:auto;padding:0 12px 12px}
+  .nav-btn{display:flex;align-items:center;gap:12px;flex-shrink:0;border:0;cursor:pointer;background:transparent;color:var(--muted);
+    border-radius:12px;padding:10px 12px;text-align:left;transition:.15s;font-family:inherit}
+  .nav-btn:hover{background:var(--surface-2);color:var(--foreground)}
+  .nav-btn.active{background:rgba(45,212,191,.12);color:var(--niobium)}
+  .nav-btn .label{font-size:14px;font-weight:500;line-height:1.1}
+  .nav-btn .sub{display:none;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
+  .refeed{display:none}
+  main{flex:1;min-width:0}
+  .header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:16px 24px;border-bottom:1px solid var(--border)}
+  .header h1{margin:0;font-size:16px;font-weight:600}
+  .header p{margin:2px 0 0;font-size:12px;color:var(--faint)}
+  .content{padding:24px;display:flex;flex-direction:column;gap:20px}
+
+  .countdown{display:flex;align-items:center;gap:12px;border:1px solid rgba(240,81,60,.4);background:rgba(240,81,60,.1);border-radius:12px;padding:8px 16px}
+  .ping{position:relative;display:inline-flex;width:10px;height:10px}
+  .ping .a{position:absolute;inset:0;border-radius:999px;background:var(--brand);opacity:.7;animation:ping 1.4s cubic-bezier(0,0,.2,1) infinite}
+  .ping .b{position:relative;width:10px;height:10px;border-radius:999px;background:var(--brand)}
+  @keyframes ping{75%,100%{transform:scale(2.2);opacity:0}}
+  .countdown .lbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:rgba(240,81,60,.9)}
+  .countdown .val{font-size:14px;font-weight:700}
+
+  /* cards & grids */
+  .card{border:1px solid var(--border);background:rgba(13,20,36,.8);border-radius:16px}
+  .card.glow{box-shadow:0 0 40px -12px rgba(45,212,191,.25)}
+  .p4{padding:16px}.p5{padding:20px}.p3{padding:12px}
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:1fr}.g3{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,1fr)}.g5{grid-template-columns:repeat(2,1fr)}
+  .row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px}
+
+  .stat .label{font-size:12px;color:var(--muted)}
+  .stat .v{font-size:26px;font-weight:600;line-height:1.1}
+  .stat .u{font-size:12px;color:var(--faint);margin-left:2px}
+  .stat .d{font-size:11px;color:var(--green);margin-top:2px;display:block}
+
+  .sec h3{margin:0;font-size:14px;font-weight:600;letter-spacing:.01em}
+  .sec .hint{margin:2px 0 0;font-size:12px;color:var(--faint)}
+
+  .badge{display:inline-flex;align-items:center;gap:4px;border:1px solid;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:500}
+  .badge.ok{background:rgba(52,211,153,.15);color:var(--green);border-color:rgba(52,211,153,.3)}
+  .badge.warn{background:rgba(251,191,36,.15);color:var(--amber);border-color:rgba(251,191,36,.3)}
+  .badge.info{background:rgba(56,189,248,.15);color:var(--sky);border-color:rgba(56,189,248,.3)}
+  .badge.neutral{background:var(--surface-3);color:var(--muted);border-color:var(--border-strong)}
+
+  .progress{height:6px;width:100%;background:var(--surface-3);border-radius:999px;overflow:hidden}
+  .progress > i{display:block;height:100%;border-radius:999px}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  .tbl-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  thead tr{background:var(--surface-2);color:var(--muted);text-align:left;font-size:12px}
+  th,td{padding:10px 16px}
+  th{font-weight:500}
+  tbody tr:nth-child(even){background:rgba(13,20,36,.4)}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+
+  .stage{position:relative;border:1px solid var(--border);background:var(--surface-2);border-radius:12px;padding:16px}
+  .stage .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .stage .t{font-size:14px;font-weight:600}
+  .stage .b{margin-top:6px;font-size:12px;line-height:1.6;color:var(--muted)}
+
+  /* map */
+  .map{position:relative;border:1px solid var(--border);border-radius:16px;background:#060a13;overflow:hidden}
+  .map .ovl-tl{position:absolute;left:16px;top:12px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(45,212,191,.7);pointer-events:none}
+  .map .ovl-br{position:absolute;right:16px;bottom:12px;display:flex;gap:12px;font-size:11px;color:var(--muted)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:999px;vertical-align:middle;margin-right:6px}
+  @keyframes dash-flow{to{stroke-dashoffset:-1000}}
+  .fade{animation:fade .4s ease both}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* forms */
+  .field{display:block;margin-bottom:18px}
+  .field > span{display:block;margin-bottom:6px;font-size:12px;color:var(--muted)}
+  select,input[type=text]{width:100%;border:1px solid var(--border);background:var(--surface-2);color:var(--foreground);
+    border-radius:10px;padding:8px 12px;font-size:14px;font-family:inherit;outline:none}
+  select:focus,input[type=text]:focus{border-color:var(--niobium)}
+  input[type=range]{width:100%;accent-color:var(--niobium)}
+  .chem{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .chem button{border:1px solid var(--border);background:var(--surface-2);color:var(--muted);border-radius:10px;padding:8px 4px;font-size:12px;cursor:pointer;font-family:inherit;transition:.15s}
+  .chem button:hover{border-color:var(--border-strong)}
+  .chem button.active{border-color:var(--niobium);background:rgba(45,212,191,.15);color:var(--niobium)}
+  .btn-primary{width:100%;border:0;cursor:pointer;background:var(--niobium);color:#04231f;font-weight:600;font-size:14px;border-radius:12px;padding:10px 16px;font-family:inherit;transition:.15s}
+  .btn-primary:hover{filter:brightness(1.1)}
+  .inner{border:1px solid var(--border);background:var(--surface-2);border-radius:12px;padding:16px}
+  .empty{display:flex;min-height:420px;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);font-size:14px}
+  .qr{border:1px solid var(--border);background:#fff;border-radius:12px;padding:8px;width:108px;height:108px}
+  .qr svg{width:100%;height:100%;display:block}
+  .footer{padding:16px 24px;border-top:1px solid var(--border);font-size:11px;color:var(--faint);text-align:center}
+
+  @media(min-width:1024px){
+    .app{flex-direction:row}
+    .sidebar{width:256px;flex-shrink:0;border-bottom:0;border-right:1px solid var(--border)}
+    .nav{flex-direction:column;gap:6px;padding-bottom:0}
+    .nav-btn{width:100%}
+    .nav-btn .sub{display:block}
+    .refeed{display:block;padding:24px 20px 20px}
+    .refeed .box{border:1px solid var(--border);background:var(--surface-2);border-radius:12px;padding:12px}
+    .g3{grid-template-columns:repeat(3,1fr)}
+    .g4{grid-template-columns:repeat(4,1fr)}
+    .g5{grid-template-columns:repeat(5,1fr)}
+    .g2{grid-template-columns:repeat(2,1fr)}
+    .col-span-2{grid-column:span 2}
+  }
+  @media(min-width:1100px){
+    .grid-passport{display:grid;grid-template-columns:2fr 3fr;gap:20px}
+    .gpv-1{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span>
+      <div><b>NTO Alliance Cockpit</b><small>Sojitz × Toshiba × CBMM</small></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="refeed"><div class="box">
+      <p style="margin:0;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)">Re-Feed 準拠</p>
+      <p style="margin:4px 0 0;font-size:18px;font-weight:700;color:var(--niobium)">12.2<span style="font-size:12px;color:var(--muted);margin-left:2px">億円 / 年</span></p>
+      <p style="margin:4px 0 0;font-size:10px;line-height:1.4;color:var(--muted)">中位シナリオ・初年度売上想定</p>
+    </div></div>
+  </aside>
+  <main>
+    <header class="header">
+      <div><h1 id="view-title">サプライチェーン</h1>
+        <p>ニオブ系次世代電池 × バッテリーパスポート 規制対応プラットフォーム</p></div>
+      <div class="countdown">
+        <span class="ping"><span class="a"></span><span class="b"></span></span>
+        <div><p class="lbl" style="margin:0">バッテリーパスポート義務化まで</p>
+          <p class="val tabular" style="margin:0" id="countdown">— <span style="font-size:10px;font-weight:400;color:var(--muted);margin-left:8px">2027-02-18 施行</span></p></div>
+      </div>
+    </header>
+    <div class="content" id="content"></div>
+    <div class="footer">オフライン・デモ版 — 全データはモックです（本番では Mapbox / Claude API / Supabase 等へ接続想定）。数値は認証された CFP ではありません。</div>
+  </main>
+</div>
+
+<script>
+"use strict";
+// ====================== DATA ======================
+const manufacturers = [
+  {id:"isuzu",name:"いすゞ自動車",segment:"商用EV",plan:"Enterprise",monthlyFeeJPY:1500000,vehiclesDeployed:1840,passportsIssued:1620,cbamCertsYTD:36,status:"適合",avgCfpPerKwh:41.2},
+  {id:"hino",name:"日野自動車",segment:"商用EV",plan:"Enterprise",monthlyFeeJPY:1350000,vehiclesDeployed:1310,passportsIssued:1188,cbamCertsYTD:28,status:"適合",avgCfpPerKwh:43.0},
+  {id:"komatsu",name:"コマツ",segment:"電動建機",plan:"Enterprise",monthlyFeeJPY:1450000,vehiclesDeployed:760,passportsIssued:612,cbamCertsYTD:41,status:"適合",avgCfpPerKwh:39.4},
+  {id:"hitachi-kenki",name:"日立建機",segment:"電動建機",plan:"Standard",monthlyFeeJPY:980000,vehiclesDeployed:540,passportsIssued:421,cbamCertsYTD:22,status:"審査中",avgCfpPerKwh:47.8},
+  {id:"fuso",name:"三菱ふそう",segment:"商用EV",plan:"Standard",monthlyFeeJPY:1050000,vehiclesDeployed:980,passportsIssued:905,cbamCertsYTD:19,status:"適合",avgCfpPerKwh:44.6},
+  {id:"ud",name:"UDトラックス",segment:"商用EV",plan:"Lite",monthlyFeeJPY:700000,vehiclesDeployed:260,passportsIssued:188,cbamCertsYTD:9,status:"要対応",avgCfpPerKwh:58.1},
+  {id:"kubota",name:"クボタ",segment:"産業機器",plan:"Standard",monthlyFeeJPY:890000,vehiclesDeployed:430,passportsIssued:357,cbamCertsYTD:14,status:"適合",avgCfpPerKwh:45.9},
+  {id:"tadano",name:"タダノ",segment:"電動建機",plan:"Lite",monthlyFeeJPY:700000,vehiclesDeployed:150,passportsIssued:96,cbamCertsYTD:6,status:"要対応",avgCfpPerKwh:61.3},
+];
+const vehiclePresets = [
+  {id:"elf-ev",model:"ELF EV (小型トラック)",manufacturer:"いすゞ自動車",segment:"商用EV",capacityKwh:40,chemistry:"NTO",renewableShare:.72,recycledRate:.18,productionSite:"東芝 横浜事業所"},
+  {id:"dutro-z",model:"デュトロ Z EV",manufacturer:"日野自動車",segment:"商用EV",capacityKwh:41,chemistry:"NTO",renewableShare:.68,recycledRate:.15,productionSite:"東芝 横浜事業所"},
+  {id:"komatsu-wheel",model:"電動ホイールローダ WA-e",manufacturer:"コマツ",segment:"電動建機",capacityKwh:200,chemistry:"NTO",renewableShare:.80,recycledRate:.22,productionSite:"東芝 横浜事業所"},
+  {id:"hitachi-ze85",model:"油圧ショベル ZE85",manufacturer:"日立建機",segment:"電動建機",capacityKwh:98,chemistry:"LFP",renewableShare:.55,recycledRate:.10,productionSite:"国内協力工場"},
+  {id:"ecanter",model:"eCanter (大型仕様)",manufacturer:"三菱ふそう",segment:"商用EV",capacityKwh:110,chemistry:"NTO",renewableShare:.66,recycledRate:.16,productionSite:"東芝 横浜事業所"},
+  {id:"ud-quon",model:"Quon EV (大型トラック)",manufacturer:"UDトラックス",segment:"商用EV",capacityKwh:240,chemistry:"NMC",renewableShare:.34,recycledRate:.06,productionSite:"海外委託工場"},
+];
+const cbamRecords = [
+  {manufacturerId:"komatsu",date:"2026-05-12",product:"鋼製フレーム",tonnesCO2:142,amountJPY:1840000},
+  {manufacturerId:"isuzu",date:"2026-05-08",product:"アルミ筐体",tonnesCO2:96,amountJPY:1244000},
+  {manufacturerId:"hitachi-kenki",date:"2026-04-30",product:"鋼製ブーム",tonnesCO2:188,amountJPY:2343000},
+  {manufacturerId:"hino",date:"2026-04-22",product:"鋳鉄部品",tonnesCO2:74,amountJPY:922000},
+  {manufacturerId:"fuso",date:"2026-04-15",product:"アルミホイール",tonnesCO2:58,amountJPY:713000},
+  {manufacturerId:"komatsu",date:"2026-03-28",product:"鋼製カウンタウェイト",tonnesCO2:210,amountJPY:2512000},
+  {manufacturerId:"kubota",date:"2026-03-19",product:"鋼製シャシ",tonnesCO2:88,amountJPY:1052000},
+  {manufacturerId:"isuzu",date:"2026-03-05",product:"アルミ筐体",tonnesCO2:101,amountJPY:1175000},
+];
+const milestones = [
+  {date:"2026-01-01",label:"EU CBAM 本格適用",detail:"鉄鋼・アルミ等の輸入に証明書購入義務"},
+  {date:"2027-01-01",label:"再生材使用量表示",detail:"EV用・産業用バッテリーに表示義務"},
+  {date:"2027-02-18",label:"パスポート義務化",detail:"EV用・産業用2kW以上・LMT用が対象"},
+  {date:"2027-07-01",label:"CFP上限値適用",detail:"EV用バッテリーのCFP上限"},
+  {date:"2030-01-01",label:"再生材最低比率",detail:"Li/Ni/Co等の最低リサイクル比率"},
+];
+const mapNodes = [
+  {id:"cbmm",label:"CBMM Araxá",sub:"ニオブ原料 / 上流",lat:-19.6,lng:-46.9,kind:"upstream"},
+  {id:"toshiba",label:"東芝 横浜事業所",sub:"NTO電池製造 / 中流",lat:35.45,lng:139.6,kind:"midstream"},
+  {id:"eu",label:"EU 市場",sub:"パスポート義務化 / 需要",lat:50.8,lng:6.5,kind:"market"},
+];
+const mapFlows = [{from:"cbmm",to:"toshiba"},{from:"toshiba",to:"eu"}];
+
+// build 18 months 2024-12 .. 2026-05
+function buildMonths(startY,startM,count){const out=[];const d=new Date(Date.UTC(startY,startM-1,1));for(let i=0;i<count;i++){out.push(d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0"));d.setUTCMonth(d.getUTCMonth()+1);}return out;}
+const MONTHS = buildMonths(2024,12,18);
+const wave = i => (Math.sin(i*1.3)+1)/2;
+// Revenue shapes scaled so the trailing-12-month total ≈ 12.2億円 (Re-Feed準拠).
+const REV_SHAPE = MONTHS.map((month,i)=>{const t=i/(MONTHS.length-1);return {month,
+  subscription:0.45+0.55*t, passport:0.12+0.88*t*t,
+  battery:(0.4+0.6*t)*(0.85+0.15*wave(i)), credit:Math.max(0,t-0.1)*(0.8+0.2*wave(i+2))};});
+const REV_TARGET={subscription:6.7e8,passport:2.5e8,battery:1.8e8,credit:1.2e8};
+const _l12=k=>REV_SHAPE.slice(-12).reduce((s,m)=>s+m[k],0);
+const REV_FACTOR={};for(const k in REV_TARGET)REV_FACTOR[k]=REV_TARGET[k]/_l12(k);
+const revenueSeries = REV_SHAPE.map(m=>({month:m.month,
+  subscription:Math.round(m.subscription*REV_FACTOR.subscription),
+  passport:Math.round(m.passport*REV_FACTOR.passport),
+  battery:Math.round(m.battery*REV_FACTOR.battery),
+  credit:Math.round(m.credit*REV_FACTOR.credit)}));
+const cfpTrend = MONTHS.slice(6).map((month,i)=>({month,value:Math.round((58-i*1.05+wave(i)*1.4)*10)/10}));
+
+// ====================== CFP ENGINE ======================
+const BASE_INTENSITY={NTO:48,LFP:62,NMC:79};
+const CFP_THRESHOLD=70;
+const clamp01=n=>Math.max(0,Math.min(1,n));
+const round1=n=>Math.round(n*10)/10;
+function computeCfp(chem,cap,renew,recycled){
+  const base=BASE_INTENSITY[chem], r=clamp01(renew), rc=clamp01(recycled);
+  const s1=base*0.08, s2=base*0.42*(1-0.8*r), s3=base*0.5*(1-0.35*rc);
+  const total=round1(s1+s2+s3);
+  return {scope1:round1(s1),scope2:round1(s2),scope3:round1(s3),totalPerKwh:total,totalKg:Math.round(total*cap)};
+}
+function originsFor(chem){
+  const c=[
+    {material:"ニオブ (Nb)",source:"CBMM Araxá 鉱山",country:"ブラジル",share:.82},
+    {material:"チタン (Ti)",source:"国内製錬",country:"日本",share:.64},
+    {material:"リチウム (Li)",source:"豪州スポジュメン",country:"オーストラリア",share:.71},
+  ];
+  if(chem==="NMC")c.push({material:"ニッケル (Ni)",source:"精錬輸入",country:"インドネシア",share:.58},{material:"コバルト (Co)",source:"認証鉱山",country:"コンゴ民主共和国",share:.41});
+  if(chem==="LFP")c.push({material:"リン酸鉄",source:"化成品",country:"日本",share:.77});
+  return c;
+}
+function recycledFor(chem,rate){
+  const r=clamp01(rate);
+  const rows=[{material:"リチウム",min:6},{material:"ニッケル",min:6},{material:"コバルト",min:16}];
+  if(chem==="NTO")rows.unshift({material:"ニオブ",min:8});
+  return rows.map((row,i)=>({material:row.material,min:row.min,pct:Math.round((r*100-i*1.5)*10)/10}));
+}
+let seq=1042;
+function issuePassport(inp){
+  const cfp=computeCfp(inp.chemistry,inp.capacityKwh,inp.renewableShare,inp.recycledRate);
+  const id="BP-"+new Date().getFullYear()+"-"+String(seq++).padStart(6,"0");
+  return {passportId:id,vehicleId:inp.vehicleId,model:inp.model,manufacturer:inp.manufacturer,
+    chemistry:inp.chemistry,capacityKwh:inp.capacityKwh,productionSite:inp.productionSite,cfp,
+    threshold:CFP_THRESHOLD,compliant:cfp.totalPerKwh<=CFP_THRESHOLD,
+    recycled:recycledFor(inp.chemistry,inp.recycledRate),origins:originsFor(inp.chemistry),
+    verifyUrl:"https://passport.sojitz-nto.example/v/"+id};
+}
+
+// ====================== HELPERS ======================
+const fmtInt=n=>Math.round(n).toLocaleString("ja-JP");
+const toOku=j=>(j/1e8).toFixed(2);
+const toMan=j=>Math.round(j/1e4).toLocaleString("ja-JP");
+const fmtMonth=m=>Number(m.split("-")[1])+"月";
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const C={niobium:"#2dd4bf",sky:"#38bdf8",indigo:"#818cf8",brand:"#f0513c",amber:"#fbbf24",green:"#34d399",grid:"#1f2c45",axis:"#5e6f90"};
+function progress(value,max,color){const p=Math.max(0,Math.min(100,(value/max)*100));return `<div class="progress"><i style="width:${p}%;background:${color}"></i></div>`;}
+
+// ====================== CHARTS (SVG) ======================
+function stackedArea(data){
+  const W=720,H=240,pad={l:48,r:12,t:16,b:26},iw=W-pad.l-pad.r,ih=H-pad.t-pad.b;
+  const totals=data.map(d=>d.passport+d.subscription+d.battery+d.credit), max=Math.max(...totals)*1.08;
+  const x=i=>pad.l+iw*i/(data.length-1), y=v=>pad.t+ih-ih*v/max;
+  const order=[["subscription",C.niobium],["passport",C.sky],["battery",C.indigo],["credit",C.amber]];
+  let base=data.map(()=>0);let bands="";
+  order.forEach(([k,color],bi)=>{
+    const lower=base.slice(), upper=data.map((d,i)=>lower[i]+d[k]); base=upper;
+    const top=upper.map((v,i)=>x(i)+","+y(v)).join(" ");
+    const bottom=lower.map((v,i)=>x(data.length-1-i)+","+y(v)).reverse().join(" ");
+    bands+=`<polygon points="${top} ${bottom}" fill="${color}" opacity="0.34" stroke="${color}" stroke-width="${bi===3?1.5:0.8}"/>`;
+  });
+  let grid="";for(let i=0;i<=4;i++){const v=max/4*i;grid+=`<line x1="${pad.l}" x2="${W-pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="${C.grid}"/><text x="${pad.l-8}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="${C.axis}">${(v/1e8).toFixed(1)}</text>`;}
+  let labs="";data.forEach((d,i)=>{if(i%3===0||i===data.length-1)labs+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="9" fill="${C.axis}">${fmtMonth(d.month)}</text>`;});
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%">${grid}<text x="6" y="${pad.t}" font-size="9" fill="${C.axis}">億円</text>${bands}${labs}</svg>`;
+}
+function lineChart(data,labels,threshold){
+  const W=720,H=200,pad={l:40,r:14,t:16,b:26},iw=W-pad.l-pad.r,ih=H-pad.t-pad.b;
+  const hi=Math.max(...data,threshold?threshold.value:0)*1.12, lo=Math.min(...data)*0.8;
+  const x=i=>pad.l+iw*i/(data.length-1), y=v=>pad.t+ih-ih*(v-lo)/(hi-lo);
+  const line=data.map((v,i)=>x(i)+","+y(v)).join(" ");
+  let grid="";for(let i=0;i<4;i++){const v=lo+(hi-lo)/3*i;grid+=`<line x1="${pad.l}" x2="${W-pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="${C.grid}"/><text x="${pad.l-7}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="${C.axis}">${Math.round(v)}</text>`;}
+  let th="";if(threshold)th=`<line x1="${pad.l}" x2="${W-pad.r}" y1="${y(threshold.value)}" y2="${y(threshold.value)}" stroke="${C.brand}" stroke-dasharray="5 4" stroke-width="1.4"/><text x="${W-pad.r}" y="${y(threshold.value)-5}" text-anchor="end" font-size="9" fill="${C.brand}">${threshold.label} ${threshold.value}</text>`;
+  let dots="";data.forEach((v,i)=>dots+=`<circle cx="${x(i)}" cy="${y(v)}" r="2.4" fill="${C.niobium}"/>`);
+  let labs="";labels.forEach((l,i)=>{if(i%2===0||i===labels.length-1)labs+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="9" fill="${C.axis}">${l}</text>`;});
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%">${grid}${th}<polygon points="${pad.l},${pad.t+ih} ${line} ${pad.l+iw},${pad.t+ih}" fill="${C.niobium}" opacity="0.12"/><polyline points="${line}" fill="none" stroke="${C.niobium}" stroke-width="2" stroke-linejoin="round"/>${dots}${labs}</svg>`;
+}
+function donut(segments,centerLabel,centerSub){
+  const total=segments.reduce((s,x)=>s+x.value,0)||1, size=168, r=size/2, stroke=18, radius=r-stroke/2-2, circ=2*Math.PI*radius;
+  let offset=0, arcs="";
+  segments.forEach(s=>{const len=s.value/total*circ;arcs+=`<circle cx="${r}" cy="${r}" r="${radius}" fill="none" stroke="${s.color}" stroke-width="${stroke}" stroke-dasharray="${len} ${circ-len}" stroke-dashoffset="${-offset}"/>`;offset+=len;});
+  let leg="";segments.forEach(s=>leg+=`<span style="display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)"><span style="width:10px;height:10px;border-radius:2px;background:${s.color}"></span><span class="t-fore">${s.label}</span><span class="t-faint tabular">${Math.round(s.value/total*100)}%</span></span>`);
+  return `<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap"><svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><g transform="rotate(-90 ${r} ${r})">${arcs}</g><text x="${r}" y="${r-2}" text-anchor="middle" font-size="20" font-weight="700" fill="#e7edf8">${centerLabel}</text><text x="${r}" y="${r+16}" text-anchor="middle" font-size="10" fill="#93a3c2">${centerSub}</text></svg><div style="display:flex;flex-direction:column;gap:6px">${leg}</div></div>`;
+}
+function gauge(value,max,threshold){
+  const W=220,H=130,cx=W/2,cy=H-10,radius=92;
+  const xy=f=>{const a=Math.PI*(1-f);return [cx+radius*Math.cos(a),cy-radius*Math.sin(a)];};
+  const arc=(f0,f1)=>{const[x0,y0]=xy(f0),[x1,y1]=xy(f1),large=f1-f0>0.5?1:0;return `M ${x0} ${y0} A ${radius} ${radius} 0 ${large} 1 ${x1} ${y1}`;};
+  const vf=Math.min(1,value/max), tf=Math.min(1,threshold/max), ok=value<=threshold, [nx,ny]=xy(vf);
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:260px">
+    <path d="${arc(0,1)}" fill="none" stroke="${C.grid}" stroke-width="14" stroke-linecap="round"/>
+    <path d="${arc(0,tf)}" fill="none" stroke="${C.green}" stroke-width="14" stroke-linecap="round" opacity="0.45"/>
+    <path d="${arc(tf,1)}" fill="none" stroke="${C.brand}" stroke-width="14" stroke-linecap="round" opacity="0.4"/>
+    <path d="${arc(0,vf)}" fill="none" stroke="${ok?C.niobium:C.brand}" stroke-width="14" stroke-linecap="round"/>
+    <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="#e7edf8" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="4" fill="#e7edf8"/>
+    <text x="${cx}" y="${cy-28}" text-anchor="middle" font-size="26" font-weight="700" fill="${ok?C.niobium:C.brand}" class="tabular">${value.toFixed(1)}</text>
+    <text x="${cx}" y="${cy-12}" text-anchor="middle" font-size="9" fill="${C.axis}">kgCO₂e / kWh</text></svg>`;
+}
+function worldMap(){
+  const VW=1000,VH=500,KIND={upstream:"#fbbf24",midstream:"#2dd4bf",market:"#38bdf8"};
+  const proj=(lat,lng)=>[((lng+180)/360)*VW,((90-lat)/180)*VH];
+  const pos={};mapNodes.forEach(n=>pos[n.id]=proj(n.lat,n.lng));
+  const arc=(a,b)=>{const[x0,y0]=a,[x1,y1]=b,d=Math.hypot(x1-x0,y1-y0),cx=(x0+x1)/2,cy=(y0+y1)/2-d*0.22;return `M ${x0} ${y0} Q ${cx} ${cy} ${x1} ${y1}`;};
+  let grat="";for(let i=0;i<=10;i++)grat+=`<line x1="${VW/10*i}" y1="0" x2="${VW/10*i}" y2="${VH}" stroke="#13203a" stroke-width="${i===5?1:0.5}"/>`;for(let i=0;i<=6;i++)grat+=`<line x1="0" y1="${VH/6*i}" x2="${VW}" y2="${VH/6*i}" stroke="#13203a" stroke-width="${i===3?1:0.5}"/>`;
+  const land=`<g opacity="0.16" fill="#1c3354">
+    <path d="M330 250 q40 -25 70 5 q25 40 5 90 q-15 55 -45 60 q-30 -20 -30 -75 q-10 -55 -0 -80 Z"/>
+    <path d="M470 95 q120 -35 260 -10 q120 10 175 35 q-30 45 -120 50 q-90 0 -180 25 q-90 -10 -150 -40 q-20 -35 15 -55 Z"/>
+    <path d="M480 200 q55 -20 95 10 q20 55 -10 110 q-30 50 -60 30 q-35 -40 -35 -90 q-15 -45 10 -70 Z"/>
+    <path d="M150 110 q90 -45 175 -10 q-10 45 -55 70 q-15 55 -55 70 q-40 -15 -45 -70 q-30 -35 35 -60 Z"/>
+    <path d="M820 330 q55 -20 90 5 q10 35 -25 50 q-45 10 -70 -15 q-15 -25 5 -40 Z"/></g>`;
+  let flows="";mapFlows.forEach((f,i)=>{const d=arc(pos[f.from],pos[f.to]);flows+=`<path d="${d}" fill="none" stroke="url(#fg)" stroke-width="1.6" opacity="0.45"/><path d="${d}" fill="none" stroke="url(#fg)" stroke-width="2.4" stroke-dasharray="6 14" style="animation:dash-flow 14s linear infinite"/><circle r="3.2" fill="#e7edf8" filter="url(#glow)"><animateMotion dur="${4+i}s" repeatCount="indefinite" path="${d}"/></circle>`;});
+  let nodes="";mapNodes.forEach(n=>{const[x,y]=pos[n.id],c=KIND[n.kind];nodes+=`<g><circle cx="${x}" cy="${y}" r="10" fill="${c}" opacity="0.18"><animate attributeName="r" values="10;22;10" dur="3s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.35;0;0.35" dur="3s" repeatCount="indefinite"/></circle><circle cx="${x}" cy="${y}" r="5.5" fill="${c}" filter="url(#glow)"/><circle cx="${x}" cy="${y}" r="2" fill="#06101f"/><text x="${x}" y="${y-16}" text-anchor="middle" font-size="13" font-weight="700" fill="#e7edf8">${n.label}</text><text x="${x}" y="${y+24}" text-anchor="middle" font-size="10" fill="${c}">${n.sub}</text></g>`;});
+  const hud=`<g stroke="#2dd4bf" stroke-width="1.5" opacity="0.5" fill="none"><path d="M14 14 h22 M14 14 v22"/><path d="M${VW-14} 14 h-22 M${VW-14} 14 v22"/><path d="M14 ${VH-14} h22 M14 ${VH-14} v-22"/><path d="M${VW-14} ${VH-14} h-22 M${VW-14} ${VH-14} v-22"/></g>`;
+  return `<div class="map"><svg viewBox="0 0 ${VW} ${VH}" style="width:100%;display:block">
+    <defs><radialGradient id="oc" cx="35%" cy="0%" r="120%"><stop offset="0%" stop-color="#0c1830"/><stop offset="55%" stop-color="#08101f"/><stop offset="100%" stop-color="#05080f"/></radialGradient>
+    <linearGradient id="fg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fbbf24"/><stop offset="50%" stop-color="#2dd4bf"/><stop offset="100%" stop-color="#38bdf8"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <rect width="${VW}" height="${VH}" fill="url(#oc)"/>${grat}${land}${flows}${nodes}${hud}</svg>
+    <div class="ovl-tl">Global Supply Chain · LIVE</div>
+    <div class="ovl-br"><span><span class="dot" style="background:${KIND.upstream}"></span>上流 (原料)</span><span><span class="dot" style="background:${KIND.midstream}"></span>中流 (製造)</span><span><span class="dot" style="background:${KIND.market}"></span>需要 (EU)</span></div></div>`;
+}
+
+// ====================== QR (pre-generated, valid) ======================
+const QR_SVG = `<svg viewBox="0 0 33 33" shape-rendering="crispEdges"><path fill="#ffffff" d="M0 0h33v33H0z"/><path stroke="#000000" d="M0 0.5h7m1 0h3m4 0h3m5 0h1m2 0h7M0 1.5h1m5 0h1m2 0h1m1 0h2m3 0h2m1 0h1m2 0h1m1 0h1m1 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m4 0h1m1 0h1m1 0h1m5 0h3m2 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h2m1 0h4m1 0h3m1 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h1m3 0h4m1 0h1m2 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m1 0h7m1 0h1m2 0h1m1 0h2m1 0h1m1 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M8 7.5h1m1 0h2m3 0h3m3 0h1m1 0h1M0 8.5h1m3 0h1m1 0h4m2 0h1m4 0h1m1 0h4m2 0h5m2 0h1M0 9.5h3m1 0h2m7 0h4m5 0h2m1 0h1m3 0h3M2 10.5h2m1 0h2m1 0h2m5 0h3m3 0h1m1 0h4m2 0h1m1 0h1M5 11.5h1m1 0h1m1 0h4m1 0h1m2 0h3m1 0h1m3 0h2M0 12.5h1m1 0h2m1 0h4m1 0h1m2 0h3m2 0h1m1 0h1m4 0h1m2 0h2m1 0h2M2 13.5h1m7 0h3m3 0h2m1 0h1m2 0h3m1 0h2m1 0h1M0 14.5h1m1 0h1m1 0h3m5 0h3m1 0h1m2 0h1m2 0h2m1 0h5m1 0h1M1 15.5h2m1 0h1m4 0h1m4 0h1m2 0h1m1 0h5m1 0h4M0 16.5h1m2 0h1m2 0h2m1 0h1m2 0h4m1 0h2m1 0h4m2 0h1m1 0h1m2 0h1M2 17.5h3m2 0h1m5 0h3m1 0h2m2 0h3m5 0h2M3 18.5h2m1 0h1m1 0h3m1 0h1m2 0h1m2 0h1m1 0h5m1 0h2m1 0h1m1 0h1M0 19.5h1m3 0h1m3 0h7m4 0h2m1 0h1m3 0h2m3 0h1M0 20.5h2m4 0h2m1 0h4m2 0h2m5 0h1m1 0h2m2 0h2M0 21.5h1m1 0h2m1 0h1m1 0h2m2 0h1m1 0h1m3 0h4m2 0h1m2 0h1m2 0h3M2 22.5h5m2 0h1m1 0h1m1 0h3m1 0h2m1 0h2m1 0h2m2 0h1m3 0h1M4 23.5h1m2 0h1m2 0h2m3 0h4m2 0h3m4 0h2m1 0h1M0 24.5h2m4 0h2m1 0h1m1 0h1m1 0h2m2 0h1m1 0h3m2 0h5m3 0h1M8 25.5h3m4 0h2m1 0h1m4 0h2m3 0h1m1 0h2M0 26.5h7m1 0h1m3 0h2m1 0h3m2 0h3m1 0h1m1 0h1m1 0h2m1 0h1M0 27.5h1m5 0h1m2 0h2m4 0h1m1 0h3m1 0h2m1 0h1m3 0h1m2 0h1M0 28.5h1m1 0h3m1 0h1m1 0h2m1 0h3m4 0h3m3 0h6m1 0h2M0 29.5h1m1 0h3m1 0h1m2 0h2m1 0h1m3 0h2m1 0h1m1 0h1m1 0h2m1 0h4m1 0h1M0 30.5h1m1 0h3m1 0h1m2 0h2m2 0h2m1 0h1m1 0h2m3 0h1m2 0h3m1 0h1M0 31.5h1m5 0h1m4 0h1m5 0h1m1 0h5M0 32.5h7m1 0h1m1 0h2m1 0h5m3 0h3m2 0h1m2 0h1m2 0h1"/></svg>`;
+
+// ====================== VIEWS ======================
+function statCard(label,value,unit,accent,delta){
+  return `<div class="card p4"><div class="stat"><span class="label">${label}</span>
+    <div><span class="v t-${accent}">${value}</span>${unit?`<span class="u">${unit}</span>`:""}</div>
+    ${delta?`<span class="d">${delta}</span>`:""}</div></div>`;
+}
+function viewSupply(){
+  const tv=manufacturers.reduce((s,m)=>s+m.vehiclesDeployed,0);
+  const tp=manufacturers.reduce((s,m)=>s+m.passportsIssued,0);
+  const comp=manufacturers.filter(m=>m.status==="適合").length;
+  const stages=[
+    ["上流","CBMM ニオブ原料","双日が株主・日本市場総代理店。世界シェア80%超のニオブをトレース付きで供給。","amber","warn"],
+    ["中流","東芝 NTO電池製造","SCiB™ ニオブチタン酸化物セル。超急速充電10分・長寿命で低CFP。","niobium","ok"],
+    ["搭載・発行","バッテリーパスポート","車両IDからCFP算定・原産地証明・QR発行。2027/2/18義務化に対応。","sky","ok"],
+    ["継続支援","CBAM コンプライアンス","CFP月次レポート・再生材比率・CBAM証明書購入代行のサブスク。","indigo","info"],
+  ];
+  const money=[
+    ["ニオブ原料","CBMM → 双日 → 東芝","粗利率 15%"],
+    ["NTO電池セル","東芝 → 双日 → メーカー","販売手数料 5–8%"],
+    ["パスポート発行","メーカー → 双日","1台あたり 8万円"],
+    ["CBAM/CFPサブスク","メーカー → 双日","月100万円 × 150社"],
+    ["カーボンクレジット","EFM Sojitz Mgmt → 双日 → メーカー","粗利 25%"],
+  ];
+  return `<div class="grid g4">
+    ${statCard("提携メーカー",fmtInt(manufacturers.length),"社","sky")}
+    ${statCard("NTO電池搭載車",fmtInt(tv),"台","niobium","▲ 直近四半期 +18%")}
+    ${statCard("発行済パスポート",fmtInt(tp),"件","indigo")}
+    ${statCard("規制適合率",Math.round(comp/manufacturers.length*100),"%","amber")}
+  </div>
+  <div class="card glow p3">${worldMap()}</div>
+  <div class="card p5"><div class="sec"><h3>一気通貫スキーム</h3><p class="hint">上流ニオブ → 中流NTO電池 → パスポート発行 → 継続コンプライアンス支援</p></div>
+    <div class="grid g4" style="margin-top:16px">
+      ${stages.map((s,i)=>`<div class="stage"><div class="top"><span class="badge ${s[4]}">${s[0]}</span><span class="t-faint tabular" style="font-size:12px">0${i+1}</span></div><p class="t t-${s[3]}">${s[1]}</p><p class="b">${s[2]}</p></div>`).join("")}
+    </div></div>
+  <div class="card p5"><div class="sec"><h3>カネの流れ</h3><p class="hint">商材トレード × データサービス × 金融機能の統合パッケージ</p></div>
+    <div class="tbl-wrap" style="margin-top:12px"><table><thead><tr><th>収益ライン</th><th>フロー</th><th class="num">条件</th></tr></thead><tbody>
+    ${money.map(m=>`<tr><td class="t-fore" style="font-weight:500">${m[0]}</td><td class="mono t-sky" style="font-size:12px">${m[1]}</td><td class="num t-niobium">${m[2]}</td></tr>`).join("")}
+    </tbody></table></div></div>`;
+}
+
+function viewCompliance(){
+  const now=Date.now();
+  const days=d=>Math.ceil((new Date(d+"T00:00:00Z").getTime()-now)/864e5);
+  const totalCbam=cbamRecords.reduce((s,r)=>s+r.amountJPY,0);
+  const tone={"適合":"ok","要対応":"warn","審査中":"info"};
+  const ms=milestones.map(m=>{const d=days(m.date),passed=d<0,primary=m.date==="2027-02-18";
+    return `<div class="card" style="padding:12px;${primary?"border-color:rgba(240,81,60,.5);background:rgba(240,81,60,.1)":""}">
+      <p class="t-faint" style="margin:0;font-size:11px">${m.date}</p>
+      <p class="t-fore" style="margin:4px 0 0;font-size:12px;font-weight:600">${m.label}</p>
+      <p class="tabular" style="margin:8px 0 0;font-size:18px;font-weight:700">${passed?'<span class="t-faint">施行済</span>':`<span class="${primary?"t-brand":"t-niobium"}">あと ${fmtInt(d)}日</span>`}</p>
+      <p class="t-muted" style="margin:4px 0 0;font-size:10px;line-height:1.4">${m.detail}</p></div>`;}).join("");
+  const cbamRows=cbamRecords.map((r,i)=>{const mfr=manufacturers.find(m=>m.id===r.manufacturerId);
+    return `<tr><td class="t-faint">${r.date.slice(5)}</td><td class="t-fore">${mfr?mfr.name:r.manufacturerId}</td><td class="t-muted">${r.product}</td><td class="num t-muted">${r.tonnesCO2}</td><td class="num t-sky">¥${toMan(r.amountJPY)}万</td></tr>`;}).join("");
+  const mfrRows=manufacturers.map(m=>`<tr><td class="t-fore" style="font-weight:500">${m.name}</td><td class="t-muted">${m.segment}</td><td class="t-muted">${m.plan}</td><td class="num t-muted">${fmtInt(m.vehiclesDeployed)}</td><td class="num t-muted">${fmtInt(m.passportsIssued)}</td><td class="num ${m.avgCfpPerKwh<=CFP_THRESHOLD?"t-niobium":"t-brand"}">${m.avgCfpPerKwh.toFixed(1)}</td><td class="num t-sky">¥${toMan(m.monthlyFeeJPY)}万</td><td style="text-align:center"><span class="badge ${tone[m.status]}">${m.status}</span></td></tr>`).join("");
+  return `<div class="card p5"><div class="sec"><h3>規制施行カウントダウン</h3><p class="hint">EU電池規則・CBAM・改正資源法の主要マイルストン</p></div>
+    <div class="grid g5" style="margin-top:16px">${ms}</div></div>
+  <div class="grid g2">
+    <div class="card p5"><div class="sec"><h3>提携メーカー平均CFP推移</h3><p class="hint">EU上限値 ${CFP_THRESHOLD} kgCO₂e/kWh に対する低減トレンド</p></div>
+      <div style="margin-top:12px">${lineChart(cfpTrend.map(p=>p.value),cfpTrend.map(p=>fmtMonth(p.month)),{value:CFP_THRESHOLD,label:"EU上限"})}</div></div>
+    <div class="card p5"><div class="sec row"><div><h3>CBAM証明書 購入代行履歴</h3><p class="hint">EU CBAM 2026/1本格適用に対応</p></div><span class="tabular t-niobium" style="font-size:14px">¥${toMan(totalCbam)}万 / YTD</span></div>
+      <div class="tbl-wrap" style="margin-top:12px;max-height:230px;overflow:auto"><table style="font-size:12px"><thead><tr><th>日付</th><th>メーカー</th><th>対象品目</th><th class="num">t-CO₂</th><th class="num">金額</th></tr></thead><tbody>${cbamRows}</tbody></table></div></div>
+  </div>
+  <div class="card p5"><div class="sec"><h3>提携メーカー コンプライアンス状況</h3><p class="hint">サブスク契約・搭載台数・平均CFP・規制適合ステータス</p></div>
+    <div class="tbl-wrap" style="margin-top:12px;overflow:auto"><table><thead><tr><th>メーカー</th><th>セグメント</th><th>プラン</th><th class="num">搭載台数</th><th class="num">発行済</th><th class="num">平均CFP</th><th class="num">月額</th><th style="text-align:center">状態</th></tr></thead><tbody>${mfrRows}</tbody></table></div></div>`;
+}
+
+function viewRevenue(){
+  const last12=revenueSeries.slice(-12);
+  const sum=k=>last12.reduce((s,m)=>s+m[k],0);
+  const tp=sum("passport"),ts=sum("subscription"),tb=sum("battery"),tc=sum("credit"),tt=tp+ts+tb+tc;
+  const latest=revenueSeries[revenueSeries.length-1],prev=revenueSeries[revenueSeries.length-2];
+  const lt=latest.passport+latest.subscription+latest.battery+latest.credit;
+  const pt=prev.passport+prev.subscription+prev.battery+prev.credit;
+  const mom=(lt-pt)/pt*100;
+  const leg=[["コンプライアンス・サブスク",C.niobium],["パスポート発行",C.sky],["NTO電池販売手数料",C.indigo],["カーボンクレジット",C.amber]]
+    .map(l=>`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:2px;background:${l[1]}"></span>${l[0]}</span>`).join("");
+  const kpiRow=(color,name,v,note)=>`<tr><td><span style="display:inline-flex;align-items:center;gap:8px;font-weight:500" class="t-fore"><span style="width:10px;height:10px;border-radius:2px;background:${color}"></span>${name}</span></td><td class="num t-fore">${toOku(v)}億円</td><td class="num t-muted">${Math.round(v/tt*100)}%</td><td class="t-muted">${note}</td></tr>`;
+  return `<div class="grid g4">
+    ${statCard("TTM 売上 (直近12ヶ月)",toOku(tt),"億円","niobium","Re-Feed準拠 12.2億円 ライン")}
+    ${statCard("当月売上",toOku(lt),"億円","sky",`前月比 ${mom>=0?"+":""}${mom.toFixed(1)}%`)}
+    ${statCard("サブスクMRR比率",Math.round(ts/tt*100),"%","indigo")}
+    ${statCard("想定粗利率 (加重)","28","%","amber")}
+  </div>
+  <div class="card p5"><div class="sec row"><div><h3>月次売上構成 (4収益ライン)</h3><p class="hint">2024-12 〜 2026-05 · 商材トレード × データサービス × クレジット</p></div><div style="display:flex;flex-wrap:wrap;gap:4px 16px">${leg}</div></div>
+    <div style="margin-top:16px">${stackedArea(revenueSeries)}</div></div>
+  <div class="grid g3">
+    <div class="card p5"><div class="sec"><h3>TTM 収益構成</h3><p class="hint">直近12ヶ月の売上ミックス</p></div>
+      <div style="margin-top:16px">${donut([{label:"コンプライアンス・サブスク",value:ts,color:C.niobium},{label:"パスポート発行",value:tp,color:C.sky},{label:"NTO電池販売手数料",value:tb,color:C.indigo},{label:"カーボンクレジット",value:tc,color:C.amber}],toOku(tt),"億円 / TTM")}</div></div>
+    <div class="card p5 col-span-2"><div class="sec"><h3>収益ライン別 KPI</h3><p class="hint">直近12ヶ月実績と単価前提</p></div>
+      <div class="tbl-wrap" style="margin-top:12px"><table><thead><tr><th>収益ライン</th><th class="num">TTM売上</th><th class="num">構成比</th><th>単価前提</th></tr></thead><tbody>
+      ${kpiRow(C.niobium,"コンプライアンス・サブスク",ts,"月70〜150万円 × 80社")}
+      ${kpiRow(C.sky,"パスポート発行",tp,"5〜8万円 / 台")}
+      ${kpiRow(C.indigo,"NTO電池販売手数料",tb,"車両単価の5〜8%")}
+      ${kpiRow(C.amber,"カーボンクレジット",tc,"5,000円 / t-CO₂ (EFM経由)")}
+      </tbody><tfoot><tr style="border-top:1px solid var(--border-strong);background:var(--surface-2)"><td class="t-fore" style="font-weight:600">合計</td><td class="num t-niobium" style="font-weight:600">${toOku(tt)}億円</td><td class="num t-faint">100%</td><td class="t-faint">初年度Re-Feed準拠</td></tr></tfoot></table></div>
+      <p class="t-faint" style="margin-top:12px;font-size:11px">※ 月次発行件数 120→500件、サブスク契約 28→82社の成長を前提とした中位シナリオ。</p></div>
+  </div>`;
+}
+
+// ====================== PASSPORT VIEW (interactive) ======================
+let pstate=null;
+function viewPassport(){
+  const opts=vehiclePresets.map(p=>`<option value="${p.id}">${p.manufacturer} — ${p.model}</option>`).join("");
+  const chems=[["NTO","NTO (東芝SCiB™)"],["LFP","LFP"],["NMC","NMC"]];
+  return `<div class="grid-passport" style="display:grid;gap:20px">
+    <div class="card p5">
+      <div class="sec" style="margin-bottom:18px"><h3>バッテリーパスポート発行</h3><p class="hint">車両情報からCFP・原産地・再生材比率を自動算定</p></div>
+      <label class="field"><span>車両プリセット</span><select id="f-preset">${opts}</select></label>
+      <label class="field"><span>車両ID</span><input type="text" id="f-vid" class="mono" value="JP-EV-000128"></label>
+      <div class="field"><span>電池化学</span><div class="chem" id="f-chem">${chems.map(c=>`<button data-c="${c[0]}">${c[1]}</button>`).join("")}</div></div>
+      <label class="field"><span id="l-cap">電池容量 — 40 kWh</span><input type="range" id="f-cap" min="20" max="300" value="40"></label>
+      <label class="field"><span id="l-ren">再エネ電力比率 (製造時) — 72%</span><input type="range" id="f-ren" min="0" max="100" value="72" style="accent-color:var(--sky)"></label>
+      <label class="field"><span id="l-rec">平均再生材比率 — 18%</span><input type="range" id="f-rec" min="0" max="60" value="18" style="accent-color:var(--indigo)"></label>
+      <div class="inner" style="padding:12px;margin-bottom:18px"><div class="row" style="font-size:12px"><span class="t-muted">ライブCFPプレビュー</span><span id="prev-val" class="t-niobium"></span></div><div style="margin-top:8px" id="prev-bar"></div></div>
+      <button class="btn-primary" id="f-issue">パスポートを発行 →</button>
+    </div>
+    <div class="card p5" id="passport-result"><div class="empty"><div style="font-size:40px;margin-bottom:12px">🔋</div><p>車両情報を入力し「パスポートを発行」を押すと、<br>EU電池規則準拠のデジタルパスポートが生成されます。</p></div></div>
+  </div>`;
+}
+function passportInit(){
+  const $=id=>document.getElementById(id);
+  let chem="NTO";
+  function setChem(c){chem=c;[...$("f-chem").children].forEach(b=>b.classList.toggle("active",b.dataset.c===c));}
+  function applyPreset(id){const p=vehiclePresets.find(x=>x.id===id);setChem(p.chemistry);$("f-cap").value=p.capacityKwh;$("f-ren").value=Math.round(p.renewableShare*100);$("f-rec").value=Math.round(p.recycledRate*100);refresh();}
+  function inputs(){const p=vehiclePresets.find(x=>x.id===$("f-preset").value);return {vehicleId:$("f-vid").value,model:p.model,manufacturer:p.manufacturer,segment:p.segment,productionSite:p.productionSite,chemistry:chem,capacityKwh:+$("f-cap").value,renewableShare:+$("f-ren").value/100,recycledRate:+$("f-rec").value/100};}
+  function refresh(){
+    $("l-cap").textContent="電池容量 — "+$("f-cap").value+" kWh";
+    $("l-ren").textContent="再エネ電力比率 (製造時) — "+$("f-ren").value+"%";
+    $("l-rec").textContent="平均再生材比率 — "+$("f-rec").value+"%";
+    const i=inputs(),c=computeCfp(i.chemistry,i.capacityKwh,i.renewableShare,i.recycledRate),ok=c.totalPerKwh<=CFP_THRESHOLD;
+    $("prev-val").textContent=c.totalPerKwh+" kgCO₂e/kWh";$("prev-val").className=ok?"t-niobium":"t-brand";
+    $("prev-bar").innerHTML=progress(c.totalPerKwh,90,ok?C.niobium:C.brand);
+  }
+  $("f-preset").addEventListener("change",e=>applyPreset(e.target.value));
+  $("f-chem").addEventListener("click",e=>{const b=e.target.closest("button");if(b){setChem(b.dataset.c);refresh();}});
+  ["f-cap","f-ren","f-rec"].forEach(id=>$(id).addEventListener("input",refresh));
+  $("f-issue").addEventListener("click",()=>{const p=issuePassport(inputs());renderPassport(p);});
+  refresh();
+}
+function renderPassport(p){
+  const scope=(label,v,tone)=>`<div style="margin-bottom:12px"><div class="row" style="font-size:12px;margin-bottom:4px"><span class="t-fore">${label}</span><span class="tabular t-muted">${v}</span></div>${progress(v,p.cfp.totalPerKwh,tone)}</div>`;
+  const origins=p.origins.map(o=>`<div class="row" style="font-size:12px"><div><span class="t-fore">${o.material}</span><span class="t-faint" style="margin-left:8px">${o.source} · ${o.country}</span></div><span class="tabular t-niobium">${Math.round(o.share*100)}%</span></div>`).join("");
+  const rec=p.recycled.map(r=>`<div><div class="row" style="font-size:12px;margin-bottom:4px"><span class="t-fore">${r.material}</span><span class="tabular t-muted">${Math.max(0,r.pct).toFixed(1)}% <span class="t-faint">/ 最低 ${r.min}%</span></span></div>${progress(Math.max(0,r.pct),Math.max(r.min*2,20),r.pct>=r.min?C.niobium:C.amber)}</div>`).join("");
+  document.getElementById("passport-result").innerHTML=`<div class="fade" style="display:flex;flex-direction:column;gap:20px">
+    <div class="row">
+      <div><div style="display:flex;align-items:center;gap:8px"><span class="mono t-fore" style="font-size:18px;font-weight:600">${p.passportId}</span><span class="badge ${p.compliant?"ok":"warn"}">${p.compliant?"規制適合":"要対応"}</span></div>
+        <p class="t-muted" style="margin:4px 0 0;font-size:14px">${p.manufacturer} · ${p.model}</p>
+        <p class="t-faint" style="margin:0;font-size:12px">車両ID ${esc(p.vehicleId)} · ${p.chemistry} · ${p.capacityKwh}kWh · ${p.productionSite}</p></div>
+      <div class="qr">${QR_SVG}</div>
+    </div>
+    <div class="grid gpv-1" style="display:grid;gap:16px">
+      <div class="inner"><p class="t-muted" style="margin:0 0 4px;font-size:12px">カーボンフットプリント (ISO 14067)</p>${gauge(p.cfp.totalPerKwh,90,p.threshold)}
+        <p class="t-faint" style="margin:4px 0 0;text-align:center;font-size:12px">EU上限値 ${p.threshold} に対し ${p.compliant?"適合":"超過"} · 総排出 ${p.cfp.totalKg.toLocaleString("ja-JP")} kgCO₂e</p></div>
+      <div class="inner"><p class="t-muted" style="margin:0 0 12px;font-size:12px">Scope別内訳 (kgCO₂e/kWh)</p>
+        ${scope("Scope 1 — 直接排出",p.cfp.scope1,C.amber)}${scope("Scope 2 — 電力",p.cfp.scope2,C.sky)}${scope("Scope 3 — 上流材料・輸送",p.cfp.scope3,C.indigo)}</div>
+    </div>
+    <div class="grid gpv-1" style="display:grid;gap:16px">
+      <div class="inner"><p class="t-muted" style="margin:0 0 12px;font-size:12px">原材料の原産地証明</p><div style="display:flex;flex-direction:column;gap:10px">${origins}</div></div>
+      <div class="inner"><p class="t-muted" style="margin:0 0 12px;font-size:12px">再生材含有率 (2031年最低比率対比)</p><div style="display:flex;flex-direction:column;gap:12px">${rec}</div></div>
+    </div>
+    <p class="t-faint" style="text-align:center;font-size:11px">検証URL: <span class="mono t-sky">${p.verifyUrl}</span> · ブロックチェーン記録 (デモ)</p>
+  </div>`;
+}
+
+// ====================== SHELL / ROUTER ======================
+const TABS=[
+  {id:"supply",label:"サプライチェーン",sub:"Global Flow",icon:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15.5 0 18M12 3c-2.5 2.5-2.5 15.5 0 18"/></svg>',render:viewSupply},
+  {id:"passport",label:"パスポート発行",sub:"Issue",icon:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M13 9h5M13 13h5M5.5 16c.6-1.6 4.4-1.6 5 0"/></svg>',render:viewPassport,init:passportInit},
+  {id:"compliance",label:"コンプライアンス",sub:"Regulation",icon:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>',render:viewCompliance},
+  {id:"revenue",label:"収益管理",sub:"Revenue",icon:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4v16h16"/><path d="M7 14l3-3 3 3 4-6"/></svg>',render:viewRevenue},
+];
+function setTab(id){
+  const tab=TABS.find(t=>t.id===id);
+  document.getElementById("view-title").textContent=tab.label;
+  [...document.getElementById("nav").children].forEach(b=>b.classList.toggle("active",b.dataset.id===id));
+  document.getElementById("content").innerHTML=tab.render();
+  if(tab.init)tab.init();
+}
+function init(){
+  const nav=document.getElementById("nav");
+  nav.innerHTML=TABS.map(t=>`<button class="nav-btn" data-id="${t.id}"><span>${t.icon}</span><span><span class="label">${t.label}</span><span class="sub">${t.sub}</span></span></button>`).join("");
+  nav.addEventListener("click",e=>{const b=e.target.closest(".nav-btn");if(b)setTab(b.dataset.id);});
+  // countdown
+  const target=new Date("2027-02-18T00:00:00Z").getTime();
+  const d=Math.ceil((target-Date.now())/864e5);
+  document.getElementById("countdown").innerHTML=(d>0?`あと ${d.toLocaleString("ja-JP")} 日`:"施行済")+` <span style="font-size:10px;font-weight:400;color:var(--muted);margin-left:8px">2027-02-18 施行</span>`;
+  setTab("supply");
+}
+init();
+</script>
+</body>
+</html>

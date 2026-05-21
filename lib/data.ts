@@ -226,26 +226,37 @@ function buildMonths(start: string, count: number): string[] {
   return out;
 }
 
-// Deterministic revenue ramp; trailing-12-month total lands near 12.2億円 (Re-Feed準拠).
-export const revenueSeries: RevenueMonth[] = MONTHS.map((month, i) => {
-  const t = i / (MONTHS.length - 1);
-  const subscribers = Math.round(28 + 54 * t); // 28 → 82社
-  const avgFee = 700_000 + 230_000 * t; // ARPU 70万 → 93万
-  const subscription = Math.round(subscribers * avgFee);
-
-  const passportsPerMonth = Math.round(120 + 380 * t * t); // 加速度的に増加
-  const unit = 50_000 + 30_000 * t;
-  const passport = Math.round(passportsPerMonth * unit);
-
-  const battery = Math.round((90_000_000 + 230_000_000 * t) * (0.7 + 0.3 * wave(i)));
-  const credit = Math.round(35_000_000 * Math.max(0, t - 0.15) * (0.8 + 0.4 * wave(i + 2)));
-
-  return { month, passport, subscription, battery, credit };
-});
-
 function wave(i: number) {
   return (Math.sin(i * 1.3) + 1) / 2;
 }
+
+// Per-line growth shapes, then scaled so the trailing-12-month total lands on
+// 12.2億円 (Re-Feed準拠 中位シナリオ): サブスク6.7 / 発行2.5 / 電池1.8 / クレジット1.2 億円。
+const REV_TARGET = { subscription: 6.7e8, passport: 2.5e8, battery: 1.8e8, credit: 1.2e8 };
+const revShape = MONTHS.map((month, i) => {
+  const t = i / (MONTHS.length - 1);
+  return {
+    month,
+    subscription: 0.45 + 0.55 * t,
+    passport: 0.12 + 0.88 * t * t,
+    battery: (0.4 + 0.6 * t) * (0.85 + 0.15 * wave(i)),
+    credit: Math.max(0, t - 0.1) * (0.8 + 0.2 * wave(i + 2)),
+  };
+});
+const revFactor = Object.fromEntries(
+  (Object.keys(REV_TARGET) as (keyof typeof REV_TARGET)[]).map((k) => [
+    k,
+    REV_TARGET[k] / revShape.slice(-12).reduce((s, m) => s + m[k], 0),
+  ]),
+) as Record<keyof typeof REV_TARGET, number>;
+
+export const revenueSeries: RevenueMonth[] = revShape.map((m) => ({
+  month: m.month,
+  subscription: Math.round(m.subscription * revFactor.subscription),
+  passport: Math.round(m.passport * revFactor.passport),
+  battery: Math.round(m.battery * revFactor.battery),
+  credit: Math.round(m.credit * revFactor.credit),
+}));
 
 export const cfpTrend: MonthlyPoint[] = MONTHS.slice(6).map((month, i) => ({
   month,
